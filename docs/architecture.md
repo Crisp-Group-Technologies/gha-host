@@ -24,7 +24,7 @@
 | `gha-prune.timer` | systemd | Watermark-based disk cleanup |
 | `gha-update.timer` | systemd (optional, `AUTO_UPDATE=true`) | Drain-aware rolling runner image refresh (`scripts/update.sh`) |
 | Host `dockerd` + BuildKit | host | Shared build engine and cache for all runners |
-| Data disk | `/data` (`DATA_DIR`) | `/data/docker` holds images, layers and build cache (Docker `data-root`); `/data/work/<n>` holds each runner's workspace |
+| Data disk | `/data` (`DATA_DIR`) | `/data/containerd` holds image layers and the build cache (containerd `root`; recent Docker uses the containerd image store), `/data/docker` holds Docker's other state (Docker `data-root`: volumes, metadata), and `/data/work/<n>` holds each runner's workspace. The installer sets both roots so nothing lands on the OS disk |
 
 ## Runner lifecycle
 

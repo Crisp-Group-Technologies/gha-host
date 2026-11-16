@@ -301,3 +301,12 @@ in `install.sh` and the docs, no `docs/benchmarks.md`.
 **`update.sh` / `gha-update.timer`:** tested in a Linux container with a stubbed `docker` and GitHub
 API: dry run, a busy runner being waited for and then skipped (exit 3, other runners still updated),
 the retry updating it, and the up-to-date no-op. Not yet run against real Docker and GitHub.
+
+**Bug found on the first real host (fixed):** the installer moved Docker's `data-root` to the data disk
+but not containerd's `root`. On Docker releases that use the containerd image store (the default for
+fresh installs of recent versions), image layers and the build cache stayed in `/var/lib/containerd`, so
+the OS disk filled up while `/data` stayed nearly empty and the disk-based cleanup (which watches
+`/data`) never fired. `install.sh` now also sets `root = "$DATA_DIR/containerd"` in
+`/etc/containerd/config.toml`. Existing data in `/var/lib/containerd` is not migrated (it is cache;
+rebuild instead). The config edit was tested for the four starting file states, but the full flow on a
+real host is not yet re-verified.

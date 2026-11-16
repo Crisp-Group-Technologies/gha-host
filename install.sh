@@ -315,8 +315,36 @@ configure_docker() {
   systemctl start docker
   log "docker configured: data-root=$DATA_DIR/docker, build cache budget=$keep"
 }
+# Recent Docker releases keep image layers and the build cache in containerd's own directory
+# (default /var/lib/containerd), NOT in Docker's data-root. Point it at the data disk as well,
+# otherwise the OS disk fills up while the data disk stays empty.
+configure_containerd() {
+  local f=/etc/containerd/config.toml want="$DATA_DIR/containerd" cur=""
+  [[ -f $f ]] && cur="$(sed -nE 's/^root *= *"(.*)".*/\1/p' "$f" | head -1)"
+  if [[ $cur == "$want" ]]; then
+    log "containerd root already $want"
+    return 0
+  fi
+  if [[ -d /var/lib/containerd ]] && [[ -n $(ls -A /var/lib/containerd 2>/dev/null) ]]; then
+    warn "existing data in /var/lib/containerd is NOT migrated (it is only cache and images); free the space afterwards with: rm -rf /var/lib/containerd/*"
+  fi
+  mkdir -p /etc/containerd "$want"
+  if [[ ! -s $f ]]; then
+    printf 'root = "%s"\n' "$want" >"$f"
+  elif grep -qE '^root *=' "$f"; then
+    sed -i -E "s|^root *=.*|root = \"$want\"|" "$f"
+  else
+    sed -i "1i root = \"$want\"" "$f"
+  fi
+  systemctl stop docker.socket docker.service 2>/dev/null || true
+  systemctl restart containerd
+  systemctl start docker
+  log "containerd root set to $want"
+}
+
 install_docker
 configure_docker
+configure_containerd
 systemctl is-active --quiet docker || systemctl start docker
 
 # arm64 emulation lives in the host kernel (binfmt_misc, "F" flag), so it is set up once here and
