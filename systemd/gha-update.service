@@ -1,0 +1,11 @@
+[Unit]
+Description=gha-host rolling runner image update
+After=docker.service network-online.target gha-host.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gha-host/scripts/update.sh
+# draining can take UPDATE_DRAIN_TIMEOUT per runner
+TimeoutStartSec=infinity
+Nice=10

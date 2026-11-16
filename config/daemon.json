@@ -1,0 +1,7 @@
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "50m", "max-file": "3" },
+  "live-restore": true,
+  "features": { "buildkit": true },
+  "builder": { "gc": { "enabled": true } }
+}

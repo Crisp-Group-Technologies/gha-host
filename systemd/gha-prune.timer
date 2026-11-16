@@ -1,0 +1,10 @@
+[Unit]
+Description=Run gha-host Docker cleanup
+
+[Timer]
+OnCalendar=@PRUNE_INTERVAL@
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

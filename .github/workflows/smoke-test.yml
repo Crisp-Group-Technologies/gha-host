@@ -1,0 +1,25 @@
+name: gha-host smoke test
+on: workflow_dispatch
+jobs:
+  smoke:
+    runs-on: [self-hosted, gha-host]
+    steps:
+      - name: tools
+        run: |
+          docker version --format '{{.Server.Version}}'
+          aws --version || echo "aws CLI not in this image"
+          az version >/dev/null && echo "az ok" || echo "az CLI not in this image"
+          python3 -m pip --version
+          jq --version
+      - name: docker layer cache is shared
+        run: |
+          d="$(mktemp -d)"; cd "$d"
+          printf 'FROM alpine:3.20\nRUN sleep 5 && echo built > /x\n' > Dockerfile
+          tag="smoke:${{ github.run_id }}"
+          time docker build -t "$tag" .
+          docker build -t "$tag" . 2>&1 | tee out.txt
+          grep -q CACHED out.txt && echo "cache OK"
+          docker rmi "$tag"
+      - name: workspace path is valid on the host daemon
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/w" alpine:3.20 ls /w >/dev/null && echo "bind mount OK"

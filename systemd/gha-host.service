@@ -1,0 +1,19 @@
+[Unit]
+Description=gha-host self-hosted GitHub Actions runners
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/gha-host/compose
+ExecStartPre=/opt/gha-host/scripts/load-secrets.sh
+ExecStartPre=/opt/gha-host/scripts/registry-login.sh
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose down --timeout 120
+TimeoutStartSec=900
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+name: lint
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          shellcheck -x -S warning install.sh uninstall.sh scripts/*.sh scripts/lib/*.sh runner/entrypoint.sh \
+            provisioning/ec2/user-data.sh provisioning/proxmox/create-vm.sh
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: runner/Dockerfile
+          ignore: DL3008,DL3015,DL4006
+  compose-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: render and validate compose
+        run: |
+          sudo groupadd -f docker
+          sudo env GHA_ETC=/tmp/gha-etc GH_ORG=acme RUNNER_IMAGE=gha-host-runner:ci HOST_NAME=ci \
+            RUNNER_COUNT=3 DATA_DIR=/tmp/gha-data RUNNER_LABELS=gha-host,test RUNNER_PER_INDEX_LABEL=true \
+            GHA_HOME="$PWD" bash scripts/gen-compose.sh /tmp/compose.yml
+          docker compose -f /tmp/compose.yml config -q

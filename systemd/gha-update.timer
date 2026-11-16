@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the gha-host rolling runner image update
+
+[Timer]
+OnCalendar=@UPDATE_SCHEDULE@
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target

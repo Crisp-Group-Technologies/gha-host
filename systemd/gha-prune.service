@@ -1,0 +1,8 @@
+[Unit]
+Description=gha-host Docker cleanup (watermark based)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gha-host/scripts/prune.sh
+Nice=10

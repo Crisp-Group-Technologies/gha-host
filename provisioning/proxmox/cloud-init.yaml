@@ -1,0 +1,15 @@
+#cloud-config
+# Optional Proxmox cloud-init snippet (place in /var/lib/vz/snippets/, use via --cicustom).
+# Replace the placeholders. Anyone with Proxmox admin access can read snippets, so for
+# sensitive setups pass only an SSH key here and copy the PAT/App key over SSH instead.
+package_update: true
+packages: [qemu-guest-agent, curl, ca-certificates]
+write_files:
+  - path: /etc/gha-host/pat
+    permissions: '0600'
+    content: |
+      REPLACE_WITH_FINE_GRAINED_PAT
+runcmd:
+  - systemctl enable --now qemu-guest-agent
+  - curl -fsSL -o /root/install.sh https://raw.githubusercontent.com/OWNER/gha-host/v0.1.0/install.sh
+  - bash /root/install.sh --repo OWNER/gha-host --ref v0.1.0 --org my-org --runners 4 --labels gha-host,onprem --build-image --data-disk /dev/sdb --yes
