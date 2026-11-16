@@ -2,7 +2,9 @@
 # gha-host installer: self-hosted GitHub Actions runners (org-level) on one VM.
 # Idempotent: re-run it to upgrade or change settings. Run as root.
 # See docs/install.md and docs/configuration.md.
-set -euo pipefail
+set -eEuo pipefail
+# never die silently: say which command failed and where
+trap 'printf "\nERROR: install.sh failed (exit %s) at line %s: %s\n" "$?" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 DEFAULT_REPO="OWNER/gha-host" # set to the repo that hosts this project
 SELF="${BASH_SOURCE[0]:-$0}"

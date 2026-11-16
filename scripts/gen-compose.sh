@@ -27,7 +27,7 @@ render() {
   local i labels
   for ((i = 1; i <= RUNNER_COUNT; i++)); do
     labels="$RUNNER_LABELS"
-    [[ $RUNNER_PER_INDEX_LABEL == true ]] && labels="$labels,runner-$i"
+    if [[ $RUNNER_PER_INDEX_LABEL == true ]]; then labels="$labels,runner-$i"; fi
     # The workspace is mounted at the SAME path inside and outside the container, so
     # `docker run -v $GITHUB_WORKSPACE:...` and container jobs resolve on the host daemon.
     cat <<EOF
@@ -73,8 +73,8 @@ EOF
       IFS=',' read -r -a _vols <<<"$RUNNER_EXTRA_VOLUMES"
       for v in "${_vols[@]}"; do [[ -n $v ]] && echo "      - $(q "$v")"; done
     fi
-    [[ -n ${RUNNER_CPUS:-} ]] && echo "    cpus: $(q "$RUNNER_CPUS")"
-    [[ -n ${RUNNER_MEMORY:-} ]] && echo "    mem_limit: $(q "$RUNNER_MEMORY")"
+    if [[ -n ${RUNNER_CPUS:-} ]]; then echo "    cpus: $(q "$RUNNER_CPUS")"; fi
+    if [[ -n ${RUNNER_MEMORY:-} ]]; then echo "    mem_limit: $(q "$RUNNER_MEMORY")"; fi
   done
 }
 
