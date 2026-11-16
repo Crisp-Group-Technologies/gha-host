@@ -81,6 +81,16 @@ Image build args (when building with `--build-image` or in CI):
 | `RUNNER_VERSION` | pinned in Dockerfile | `actions-runner` base tag |
 | `INSTALL_AWS_CLI` | `true` | AWS CLI v2 |
 | `INSTALL_AZURE_CLI` | `true` | Azure CLI (about 1 GB, so turn it off for slim hosts) |
+| `INSTALL_NODEJS` | `true` | Node.js + npm + npx from nodejs.org (checksum-verified). `--no-nodejs` to leave out |
+| `NODE_MAJOR` | `24` | Node.js LTS major line: the latest release of it is installed at build time. `--node-major 26` etc. |
+| `POSTGRES_CLIENT_VERSION` | empty (off) | PostgreSQL client tools (`pg_dump`, `psql`) of this major from the official PGDG repo, e.g. `17` (`--postgres-client 17`) |
+| `PLAYWRIGHT_DEPS_VERSION` | empty (off) | Bakes in Chromium's system libraries for this Playwright version, e.g. `1.63.0` (`--playwright-deps 1.63.0`). Needs Node. Workflows still install the browser itself; use the version from your `package-lock.json` |
+
+Always installed: `gettext-base` (`envsubst`), `build-essential` (gcc, g++, make), `gh` (GitHub CLI,
+from Ubuntu's archive; give jobs `GH_TOKEN` as usual) and `xz`. The settings above are also environment/env-file
+values, so `INSTALL_NODEJS=false` or `NODE_MAJOR=26` in `/etc/gha-host/gha-host.env` work too.
+Changing them needs an image rebuild: re-run `install.sh --reconfigure` (recreates runners
+immediately) or, with `BUILD_IMAGE=true`, run `scripts/update.sh` (waits for each runner to be idle).
 
 ## Host and storage
 
@@ -88,6 +98,7 @@ Image build args (when building with `--build-image` or in CI):
 |---|---|---|---|
 | `PLATFORM` | `--platform` | auto | `ec2` or `vm` |
 | `DATA_DISK` | `--data-disk` | none | Block device, or `auto` (first blank, unmounted disk). Mounted at `DATA_DIR` by UUID in `/etc/fstab` |
+| `QEMU_BINFMT` | `--arm64-emulation` | `false` | x86_64 hosts only. Installs `qemu-user-binfmt` and registers `qemu-aarch64` with the kernel (flag `F`), then checks that `docker run --platform linux/arm64 alpine uname -m` prints `aarch64`. Lets workflows build and run `linux/arm64` images without a privileged setup step. Registration is re-applied at boot by systemd |
 | `DATA_DIR` | `--data-dir` | `/data` | Holds Docker (`$DATA_DIR/docker`, set as `data-root`) and runner workspaces (`$DATA_DIR/work/<n>`). A plain directory if no data disk is given |
 | `RUNNER_UID` | — | `1001` | uid of the `runner` user in the image. The installer reads the real value from the image |
 | `DATA_FS` | `--fs` | `ext4` | `ext4` or `xfs` |

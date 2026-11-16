@@ -43,6 +43,16 @@ assumption that it is a real risk and limit what that root access can reach.
 - **Patch the host**: `unattended-upgrades` enabled by the installer.
 - **Audit**: GitHub org audit log for runner registration events. Ship `journald` off-host.
 
+## Coming from rootless Docker?
+
+If your existing runner hosts run **rootless** Docker, note that gha-host uses the normal (rootful)
+Docker daemon, so a job's access to the socket is root on the VM, where rootless would give an
+unprivileged user. That is the main security trade-off of this design, and the controls above
+(private repos only, one VM per trust level, minimal host secrets) are what compensate for it. A
+rootless mode is not built yet; it is listed under "Stronger isolation options" below. Rootful Docker
+does make some things easier: privileged setup steps such as `docker/setup-qemu-action` work, and
+`--arm64-emulation` registers QEMU once on the host.
+
 ## Stronger isolation options (phase 6)
 
 | Option | Keeps shared cache? | Effort | Notes |

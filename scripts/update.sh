@@ -45,8 +45,7 @@ wait_online() { # NAME TIMEOUT_SECONDS
 # --- 1. refresh the image ------------------------------------------------------------
 if [[ $BUILD_IMAGE == true ]]; then
   log "rebuilding $RUNNER_IMAGE (--pull for a fresh base image)"
-  docker build --pull -f "$GHA_HOME/runner/Dockerfile" -t "$RUNNER_IMAGE" \
-    --build-arg "INSTALL_AWS_CLI=$INSTALL_AWS_CLI" --build-arg "INSTALL_AZURE_CLI=$INSTALL_AZURE_CLI" "$GHA_HOME"
+  build_runner_image --pull
 else
   "$GHA_HOME/scripts/registry-login.sh"
   log "pulling $RUNNER_IMAGE"

@@ -153,6 +153,9 @@ gha-host/
   - Azure CLI (Microsoft apt repo)
   - `python3`, `python3-pip`, `python3-venv`
   - `jq`, plus basics: `git`, `curl`, `unzip`, `openssl` (GitHub App JWT signing), `ca-certificates`
+  - Added after first use: `gettext-base` (`envsubst`), Node.js LTS + npm (`INSTALL_NODEJS`, `NODE_MAJOR`),
+    `build-essential`, `gh`, optional PostgreSQL client (`POSTGRES_CLIENT_VERSION`) and Playwright Chromium
+    libraries (`PLAYWRIGHT_DEPS_VERSION`); host-level arm64 emulation via QEMU binfmt (`QEMU_BINFMT`)
 - [x] `tools.d/*.sh` hook for extra tools baked in at build time (kubectl, helm, terraform)
       so each team can extend the image without forking the Dockerfile.
 - [x] Build args for image size: `INSTALL_AZURE_CLI=true`, `INSTALL_AWS_CLI=true`, so slim
@@ -231,6 +234,7 @@ sudo bash install.sh --org my-org --pat-file /root/gh-pat --runners 5 --labels b
 
 ### Phase 6: Optional hardening and scale (later)
 - [ ] Docs for a hand-built EC2 launch template + ASG of 1 for self-healing (no Terraform).
+- [ ] Rootless Docker mode (existing hosts of this org ran rootless). Needs per-user daemon, different socket path and `data-root`, and no privileged steps.
 - [ ] Shared BuildKit sidecar (`moby/buildkit`) as an alternative to the host socket, so
       jobs don't get host Docker access. Teams then build with `driver: remote`.
 - [ ] Registry pull-through cache (`registry:2` as a Docker Hub mirror) to avoid Docker Hub

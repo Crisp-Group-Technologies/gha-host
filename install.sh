@@ -36,7 +36,11 @@ Image
   --image REF                  runner image (default ghcr.io/<org>/gha-host-runner:latest,
                                or gha-host-runner:local with --build-image)
   --build-image                build runner/Dockerfile on this host instead of pulling
-  --no-aws-cli / --no-azure-cli   leave a CLI out of the image (build only)
+  --no-aws-cli / --no-azure-cli / --no-nodejs   leave a tool out of the image (build only)
+  --node-major N               Node.js LTS major to bake in (default 24)
+  --postgres-client N          bake in PostgreSQL N client tools (pg_dump, psql), e.g. 17
+  --playwright-deps VERSION    bake in Chromium's system libraries for Playwright VERSION, e.g. 1.63.0
+  --arm64-emulation            host: register QEMU so containers can build/run linux/arm64 images
   --registry-auth auto|ecr|basic|none
   --registry-user USER / --registry-password-file FILE
 
@@ -113,6 +117,11 @@ while [[ $# -gt 0 ]]; do
     --build-image) FLAGS[BUILD_IMAGE]=true; shift ;;
     --no-aws-cli) FLAGS[INSTALL_AWS_CLI]=false; shift ;;
     --no-azure-cli) FLAGS[INSTALL_AZURE_CLI]=false; shift ;;
+    --no-nodejs) FLAGS[INSTALL_NODEJS]=false; shift ;;
+    --node-major) need "$@"; FLAGS[NODE_MAJOR]=$2; shift 2 ;;
+    --postgres-client) need "$@"; FLAGS[POSTGRES_CLIENT_VERSION]=$2; shift 2 ;;
+    --playwright-deps) need "$@"; FLAGS[PLAYWRIGHT_DEPS_VERSION]=$2; shift 2 ;;
+    --arm64-emulation) FLAGS[QEMU_BINFMT]=true; shift ;;
     --registry-auth) need "$@"; FLAGS[REGISTRY_AUTH]=$2; shift 2 ;;
     --registry-user) need "$@"; FLAGS[REGISTRY_USERNAME]=$2; shift 2 ;;
     --registry-password-file) need "$@"; FLAGS[REGISTRY_PASSWORD_FILE]=$2; shift 2 ;;
@@ -310,6 +319,39 @@ install_docker
 configure_docker
 systemctl is-active --quiet docker || systemctl start docker
 
+# arm64 emulation lives in the host kernel (binfmt_misc, "F" flag), so it is set up once here and
+# every container, including docker buildx builds started by workflows, can use it.
+setup_arm64_emulation() {
+  [[ $QEMU_BINFMT == true ]] || return 0
+  if [[ $(uname -m) != x86_64 ]]; then
+    log "arm64 emulation: this host is $(uname -m), nothing to emulate"
+    return 0
+  fi
+  log "setting up QEMU user-mode emulation for linux/arm64"
+  if apt-cache show qemu-user-binfmt >/dev/null 2>&1; then
+    apt-get install -y -qq qemu-user-binfmt >/dev/null
+  else
+    apt-get install -y -qq qemu-user-static binfmt-support >/dev/null
+  fi
+  local f=/proc/sys/fs/binfmt_misc/qemu-aarch64
+  if [[ ! -e $f ]]; then
+    mountpoint -q /proc/sys/fs/binfmt_misc || mount -t binfmt_misc none /proc/sys/fs/binfmt_misc 2>/dev/null || true
+    systemctl restart systemd-binfmt 2>/dev/null || update-binfmts --enable qemu-aarch64 2>/dev/null || true
+  fi
+  if [[ ! -e $f ]]; then
+    warn "qemu-aarch64 is not registered in binfmt_misc; arm64 images will not build. Check the kernel supports binfmt_misc."
+    return 0
+  fi
+  grep -E '^flags' "$f" | grep -q F ||
+    warn "qemu-aarch64 flags lack 'F' ($(grep -E '^flags' "$f")); emulation may not work inside containers"
+  if [[ $(docker run --rm --platform linux/arm64 alpine uname -m 2>/dev/null) == aarch64 ]]; then
+    log "arm64 emulation works inside containers"
+  else
+    warn "arm64 emulation test failed: 'docker run --platform linux/arm64 alpine uname -m' did not print aarch64"
+  fi
+}
+setup_arm64_emulation
+
 # --- install files ----------------------------------------------------------------------
 log "installing to $GHA_HOME"
 install -d -m 0755 "$GHA_HOME" "$GHA_ETC" "$GHA_HOME/compose"
@@ -352,8 +394,7 @@ gh_call GET "/orgs/$GH_ORG/actions/runner-groups" 2>/dev/null |
 # --- image -------------------------------------------------------------------------------
 if [[ $BUILD_IMAGE == true ]]; then
   log "building runner image $RUNNER_IMAGE (this takes a few minutes the first time)"
-  docker build -f "$GHA_HOME/runner/Dockerfile" -t "$RUNNER_IMAGE" \
-    --build-arg "INSTALL_AWS_CLI=$INSTALL_AWS_CLI" --build-arg "INSTALL_AZURE_CLI=$INSTALL_AZURE_CLI" "$GHA_HOME"
+  build_runner_image
 else
   if [[ $RUNNER_IMAGE == *.dkr.ecr.* ]]; then ensure_aws_cli; fi
   "$GHA_HOME/scripts/registry-login.sh"

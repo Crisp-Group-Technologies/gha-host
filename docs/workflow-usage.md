@@ -24,8 +24,18 @@ Avoid targeting a single runner (`runner-3`). It defeats pooling.
 ## Pre-installed tools
 
 The base image includes: `docker.io` CLI + buildx + compose, AWS CLI v2 (`aws`), Azure CLI (`az`),
-`python3` + `pip`, `jq`, plus `git`, `curl`, `unzip`, `openssl`. (Operators can build slim variants
-without the AWS or Azure CLI.)
+Node.js LTS with `npm`/`npx`, `python3` + `pip`, `jq`, `envsubst` (gettext-base), `gh`, a C/C++
+toolchain (`build-essential`), plus `git`, `curl`, `unzip`, `xz`, `openssl`. Optional extras the
+operator may have enabled: PostgreSQL client tools (`pg_dump`, `psql`) and Chromium's system libraries
+for Playwright (you still run `npx playwright install chromium` to fetch the browser). Operators can
+also build slim variants without the AWS CLI, Azure CLI or Node.
+
+**linux/arm64 images:** if the operator enabled `--arm64-emulation`, `docker buildx build --platform
+linux/arm64,linux/amd64 ...` works with no setup step in the workflow. Do not add
+`docker/setup-qemu-action`; it is unnecessary here and starts a privileged container.
+
+For a specific Node version, `actions/setup-node` still works and takes precedence. For other
+tools, ask the operator to add a script under `runner/tools.d/`.
 
 `pip install` works directly (the image sets `PIP_BREAK_SYSTEM_PACKAGES=1` because Ubuntu 24.04's
 system Python is otherwise "externally managed"). For isolation use `python3 -m venv` as usual.
